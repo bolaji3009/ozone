@@ -243,6 +243,7 @@
                   <includes>
                     <include>docker-compose-files.txt</include>
                     <include>start-ozone.sh</include>
+                    <include>*.env</include>
                   </includes>
                   <filtering>true</filtering>
                 </resource>
@@ -288,6 +289,33 @@
                   <directory>${project.build.directory}/openmrs_modules</directory>
                 </resource>
               </resources>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+
+      <!-- Merge Ozone .env and distro.env files -->
+      <plugin>
+        <groupId>com.bekioui.maven.plugin</groupId>
+        <artifactId>merge-maven-plugin</artifactId>
+        <version>1.2.0</version>
+        <executions>
+          <execution>
+            <id>Merge env files</id>
+            <phase>prepare-package</phase>
+            <goals>
+              <goal>merge</goal>
+            </goals>
+            <configuration>
+              <merges>
+                <merge>
+                  <target>
+                    ${project.build.directory}/${project.artifactId}-${project.version}/run/docker/concatenated.env</target>
+                  <searchDir>${project.build.directory}/${project.artifactId}-${project.version}/run/docker</searchDir>
+                  <pattern>^(?!ozone-dir\.env$).*\.env</pattern>
+                  <override>true</override>
+                </merge>
+              </merges>
             </configuration>
           </execution>
         </executions>
@@ -519,6 +547,30 @@
                   </resources>
                 </configuration>
               </execution>
+              <execution>
+                <!-- Copy start-bundled.sh, start-bundled-sso.sh to scripts folder-->
+                <id>Copy bundled-docker helper scripts</id>
+                <phase>package</phase>
+                <goals>
+                  <goal>copy-resources</goal>
+                </goals>
+                <configuration>
+                  <outputDirectory>
+                    ${project.build.directory}/${project.artifactId}-${project.version}/run/docker/scripts
+                  </outputDirectory>
+                  <overwrite>true</overwrite>
+                  <resources>
+                    <resource>
+                      <directory>${project.build.directory}/bundled-docker-build-tmp/bundled-docker/scripts</directory>
+                      <filtering>true</filtering>
+                      <includes>
+                        <include>start-bundled.sh</include>
+                        <include>start-bundled-sso.sh</include>
+                      </includes>
+                    </resource>
+                  </resources>
+                </configuration>
+              </execution>
             </executions>
           </plugin>
           <plugin>
@@ -574,19 +626,10 @@
                   </build>
                 </image>
                 <image>
-                  <name>${docker.push.registry.username}/%a-erpnext</name>
+                  <name>${docker.push.registry.username}/%a-senaite-sso</name>
                   <build>
                     <dockerFile>
-                      ${project.build.directory}/bundled-docker-build-tmp/bundled-docker/erpnext/Dockerfile</dockerFile>
-                    <contextDir>
-                      ${project.build.directory}/bundled-docker-build-tmp/distro</contextDir>
-                  </build>
-                </image>
-                <image>
-                  <name>${docker.push.registry.username}/%a-eip-erpnext-openmrs</name>
-                  <build>
-                    <dockerFile>
-                      ${project.build.directory}/bundled-docker-build-tmp/bundled-docker/eip-erpnext-openmrs/Dockerfile</dockerFile>
+                      ${project.build.directory}/bundled-docker-build-tmp/bundled-docker/senaite/Dockerfile-sso</dockerFile>
                     <contextDir>
                       ${project.build.directory}/bundled-docker-build-tmp/distro</contextDir>
                   </build>
