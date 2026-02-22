@@ -50,6 +50,31 @@ services:
       RABBITMQ_SERVER_ADDITIONAL_ERL_ARGS: >
         -rabbitmq_management load_definitions "/etc/rabbitmq/definitions.json"
 
+  openimis-db:
+    image: postgres:14
+    environment:
+      POSTGRES_DB: openimis
+      POSTGRES_USER: openimis
+      POSTGRES_PASSWORD: openimis
+    volumes:
+      - openimis-db:/var/lib/postgresql/data
+
+  openimis-be:
+    image: ghcr.io/openimis/openimis-be:develop
+    environment:
+      DATABASE_URL: postgres://openimis:openimis@openimis-db:5432/openimis
+    ports:
+      - "8000:8000"
+    depends_on: [openimis-db]
+
+  openimis-fe:
+    image: ghcr.io/openimis/openimis-fe:develop
+    environment:
+      REACT_APP_API_URL: http://openimis-be:8000
+    ports:
+      - "3000:80"
+    depends_on: [openimis-be]
+
   imis-connect:
     build:
       context: .
@@ -59,9 +84,12 @@ services:
       OPENIMIS_AUTH: "basic"
       RABBITMQ_URI: amqp://guest:guest@rabbitmq:5672
       FHIR_STRATEGY: "R4"
-    depends_on: [rabbitmq]
+    depends_on: [rabbitmq, openimis-be]
     ports:
       - "8085:8080"
+
+volumes:
+  openimis-db:
 EOF
 fi
 
@@ -78,6 +106,20 @@ while ! curl -s -f http://localhost:15672 > /dev/null; do
     echo -n "."
 done
 echo "RabbitMQ is ready!"
+
+echo "Waiting for openIMIS Backend..."
+while ! curl -s -f http://localhost:8000 > /dev/null; do
+    sleep 2
+    echo -n "."
+done
+echo "openIMIS Backend is ready!"
+
+echo "Waiting for openIMIS Frontend..."
+while ! curl -s -f http://localhost:3000 > /dev/null; do
+    sleep 2
+    echo -n "."
+done
+echo "openIMIS Frontend is ready!"
 
 echo "Waiting for IMIS-Connect..."
 while ! curl -s -f http://localhost:8085/api/v1/health > /dev/null; do
@@ -100,6 +142,8 @@ echo "- SENAITE: http://localhost:8081"
 echo "- Keycloak: http://localhost:8082"
 echo "- RabbitMQ Management: http://localhost:15672 (guest/guest)"
 echo "- IMIS-Connect API: http://localhost:8085/swagger-ui.html"
+echo "- openIMIS Frontend: http://localhost:3000"
+echo "- openIMIS Backend: http://localhost:8000"
 echo ""
 echo "To stop the stack: docker-compose down"
 echo "To view logs: docker-compose logs -f"
