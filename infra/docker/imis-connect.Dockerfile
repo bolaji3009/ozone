@@ -1,8 +1,8 @@
 FROM eclipse-temurin:17-jdk-alpine AS builder
 
 WORKDIR /app
-COPY services/imis-connect/pom.xml .
-COPY services/imis-connect/src ./src
+COPY pom.xml .
+COPY src ./src
 
 RUN apk add --no-cache maven && mvn package -DskipTests
 
