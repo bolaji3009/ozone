@@ -21,7 +21,9 @@ services:
       - oznhmo
 
   openmrs:
-    image: openmrs/openmrs-reference-application-distro:latest
+    build:
+      context: .
+      dockerfile: ./infra/docker/openmrs.Dockerfile
     container_name: oznhmo-openmrs
     depends_on:
       - openmrs-db
@@ -31,6 +33,7 @@ services:
       MODULE_WEB_ADMIN: "true"
       DB_AUTO_UPDATE: "true"
       DB_CREATE_TABLES: "true"
+      JAVA_OPTS: "${JAVA_OPTS:- -Xmx2g -Xms512m}"
       OMRS_CONFIG_CONNECTION_SERVER: openmrs-db
       OMRS_CONFIG_CONNECTION_DATABASE: openmrs
       OMRS_CONFIG_CONNECTION_USERNAME: ${OPENMRS_DB_USER:-openmrs}
@@ -44,6 +47,8 @@ services:
       timeout: 5s
     volumes:
       - openmrs-data:/usr/local/tomcat/.OpenMRS
+      - ./openmrs/config/initializer:/openmrs/data/configuration/initializer:ro
+      - ./distro/target/distro-emr-configuration/sdk-distro/web/openmrs-distro.properties:/usr/local/tomcat/.OpenMRS/openmrs-distro.properties:ro
     networks:
       - oznhmo
 
@@ -70,12 +75,13 @@ services:
       - HOST=${POSTGRES_DB_HOST:-odoo-db}
       - USER=${ODOO_DB_USER:-odoo}
       - PASSWORD=${ODOO_DB_PASSWORD:-odoo}
-      - ADDONS=base,odoo_initializer
+      - ADDONS=base,odoo_initializer,insurance_claim
+      - ODOO_ADDONS_PATH=/mnt/extra-addons,/usr/lib/python3/dist-packages/odoo/addons
     ports:
       - "8069:8069"
     volumes:
       - "${ODOO_FILESTORE:-odoo-filestore}:/var/lib/odoo/filestore"
-      - "${ODOO_EXTRA_ADDONS:-odoo-extra-addons}:/mnt/extra-addons"
+      - "./odoo-modules/insurance_claim:/mnt/extra-addons/insurance_claim:ro"
       - "./odoo.conf:/etc/properties/odoo.conf"
       - "./distro/configs/odoo/initializer_config:/mnt/odoo_config"
       - "${ODOO_CONFIG_CHECKSUMS_PATH:-odoo-checksums}:/mnt/checksums"
@@ -112,7 +118,7 @@ services:
     ports:
       - "8081:8080"
     volumes:
-      - ${SENAITE_CONFIG_PATH:-./senaite-config}:/data/importdata/senaite
+      - ./distro/configs/senaite:/data/importdata/senaite
       - ${SENAITE_BLOBSTORAGE_PATH:-senaite-blobstorage}:/home/senaite/senaitelims/blobstorage
     networks:
       - oznhmo
@@ -139,9 +145,12 @@ services:
       "/opt/keycloak/bin/kc.sh build --health-enabled=true --metrics-enabled=true &&
        /opt/keycloak/bin/kc.sh start --optimized --import-realm"
     volumes:
-      - ${KEYCLOAK_CONFIG_PATH}/realms:/opt/keycloak/data/import
+      - ./distro/configs/keycloak/realms:/opt/keycloak/data/import
       - ${KEYCLOAK_CONFIG_PATH}/themes/carbon:/opt/keycloak/themes/carbon
+      - ./ozone-deployment/terraform/certs:/etc/x509/https
     environment:
+      KC_HTTPS_CERTIFICATE_FILE: /etc/x509/https/cert.pem
+      KC_HTTPS_CERTIFICATE_KEY_FILE: /etc/x509/https/key.pem
       KC_HOSTNAME_STRICT: 'false'
       KC_HOSTNAME_BACKCHANNEL_DYNAMIC: 'false'
       KC_HEALTH_ENABLED: "true"
@@ -157,12 +166,13 @@ services:
       KC_OVERRIDE: 'false'
       KC_LOG_CONSOLE_OUTPUT: json
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/"]
+      test: ["CMD", "curl", "-f", "https://localhost:8443/"]
       interval: 15s
       timeout: 3s
       retries: 5
       start_period: 30s
     ports:
+      - "8443:8443"
       - "8082:8080"
     depends_on:
       keycloak-db:
@@ -190,8 +200,8 @@ services:
   # IMIS-Connect
   imis-connect:
     build:
-      context: ./services/imis-connect
-      dockerfile: ../../infra/docker/imis-connect.Dockerfile
+      context: .
+      dockerfile: ./infra/docker/imis-connect.Dockerfile
     container_name: oznhmo-imis-connect
     restart: unless-stopped
     command: sh -c "sleep 30 && java -jar imis-connect.jar"
@@ -234,6 +244,15 @@ services:
       - "8088:8088"
     depends_on:
       - superset-db
+    networks:
+      - oznhmo
+
+  frontend:
+    image: ghcr.io/openimis/openimis-fe:25.10
+    container_name: oznhmo-frontend
+    ports:
+      - "80:80"
+      - "443:443"
     networks:
       - oznhmo
 
