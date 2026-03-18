@@ -32,6 +32,7 @@ services:
       echo 'create_tables=true' >> /usr/local/tomcat/openmrs-server.properties &&
       echo 'auto_update_database=true' >> /usr/local/tomcat/openmrs-server.properties &&
       /usr/local/tomcat/wait-for-it.sh --timeout=3600 openmrs-db:3306 &&
+      export CATALINA_OPTS="-Xmx3g -Xms512m" &&
       /usr/local/tomcat/bin/catalina.sh jpda run &
       for i in {1..30}; do sleep 10; curl -L http://localhost:8080/openmrs/ && break; done;
       wait"
