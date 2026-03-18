@@ -21,9 +21,7 @@ services:
       - oznhmo
 
   openmrs:
-    build:
-      context: .
-      dockerfile: ./infra/docker/openmrs.Dockerfile
+    image: openmrs/openmrs-reference-application-distro:latest
     container_name: oznhmo-openmrs
     depends_on:
       - openmrs-db
