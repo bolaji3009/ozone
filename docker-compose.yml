@@ -20,6 +20,21 @@ services:
 
   openmrs:
     image: openmrs/openmrs-reference-application-distro:latest
+    command: >
+      bash -c "
+      echo 'install_method=auto' > /usr/local/tomcat/openmrs-server.properties &&
+      echo 'connection.url=jdbc:mysql://openmrs-db:3306/openmrs?autoReconnect=true&sessionVariables=default_storage_engine=InnoDB&useUnicode=true&characterEncoding=UTF-8' >> /usr/local/tomcat/openmrs-server.properties &&
+      echo 'connection.username=root' >> /usr/local/tomcat/openmrs-server.properties &&
+      echo 'connection.password=openmrs_root_password' >> /usr/local/tomcat/openmrs-server.properties &&
+      echo 'has_current_openmrs_database=true' >> /usr/local/tomcat/openmrs-server.properties &&
+      echo 'create_database_user=false' >> /usr/local/tomcat/openmrs-server.properties &&
+      echo 'module_web_admin=true' >> /usr/local/tomcat/openmrs-server.properties &&
+      echo 'create_tables=true' >> /usr/local/tomcat/openmrs-server.properties &&
+      echo 'auto_update_database=true' >> /usr/local/tomcat/openmrs-server.properties &&
+      /usr/local/tomcat/wait-for-it.sh --timeout=3600 openmrs-db:3306 &&
+      /usr/local/tomcat/bin/catalina.sh jpda run &
+      for i in {1..30}; do sleep 10; curl -L http://localhost:8080/openmrs/ && break; done;
+      wait"
     container_name: oznhmo-openmrs
     depends_on:
       - openmrs-db
@@ -36,11 +51,8 @@ services:
       OMRS_CONFIG_CONNECTION_PASSWORD: ${OPENMRS_DB_PASSWORD:-openmrs}
       DB_HOST: openmrs-db
       DB_DATABASE: openmrs
-      DB_USERNAME: openmrs
-      DB_PASSWORD: openmrs
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/openmrs"]
-      timeout: 5s
+      DB_USERNAME: root
+      DB_PASSWORD: openmrs_root_password
     volumes:
       - openmrs-data:/usr/local/tomcat/.OpenMRS
       - ./openmrs/config/initializer:/openmrs/data/configuration/initializer:ro
