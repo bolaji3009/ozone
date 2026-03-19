@@ -2,7 +2,7 @@
 {
   "name": "Insurance Claim (Nigeria HMO)",
   "summary": "Band-aware tariffs, eligibility, claim submission and tracking",
-  "version": "16.0.1.0.0",
+  "version": "1.0",
   "author": "OzNHMO",
   "depends": ["account", "contacts", "sale"],
   "data": [
